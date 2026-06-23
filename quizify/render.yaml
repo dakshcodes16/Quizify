@@ -1,0 +1,52 @@
+# Render deployment blueprint — defines two web services (API + UI)
+# that share environment variables. Deploy via "New > Blueprint" in
+# the Render dashboard, pointing at this repo.
+services:
+  - type: web
+    name: quizify-api
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-pro
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "1440"
+      - key: DATABASE_URL
+        value: sqlite:///./database/quizify.db
+      - key: CHROMA_PERSIST_DIR
+        value: ./vectorstore/chroma_data
+      - key: ENVIRONMENT
+        value: production
+    disk:
+      name: quizify-data
+      mountPath: /opt/render/project/src/database
+      sizeGB: 1
+
+  - type: web
+    name: quizify-ui
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-pro
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: API_BASE_URL
+        fromService:
+          name: quizify-api
+          type: web
+          property: hostport
+      - key: ENVIRONMENT
+        value: production

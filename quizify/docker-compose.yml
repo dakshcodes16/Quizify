@@ -1,0 +1,38 @@
+version: "3.9"
+
+# Two services sharing the same image and a persistent volume for the
+# SQLite DB + Chroma vector store, so data survives container restarts.
+# For Postgres in production, swap DATABASE_URL and add a `db` service.
+
+services:
+  api:
+    build: .
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - quizify_data:/app/database
+      - quizify_vectors:/app/vectorstore/chroma_data
+    restart: unless-stopped
+
+  ui:
+    build: .
+    command: streamlit run app.py --server.address 0.0.0.0 --server.port 8501 --server.headless true
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://api:8000
+    volumes:
+      - quizify_data:/app/database
+      - quizify_vectors:/app/vectorstore/chroma_data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  quizify_data:
+  quizify_vectors:

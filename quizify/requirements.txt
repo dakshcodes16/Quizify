@@ -1,0 +1,45 @@
+# ===== Core =====
+python-dotenv==1.0.1
+pydantic==2.8.2
+pydantic-settings==2.4.0
+email-validator==2.2.0
+
+# ===== Web frameworks =====
+streamlit==1.38.0
+fastapi==0.112.2
+uvicorn[standard]==0.30.6
+
+# ===== Auth =====
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# Pinned below 4.1: passlib 1.7.4 reads bcrypt.__about__.__version__, which
+# was removed in bcrypt>=4.1. Without this pin, every single password
+# hash/verify call throws a caught-but-noisy AttributeError traceback to
+# stderr (visible in logs on every login and registration). 4.0.1 is the
+# newest version that still exposes __about__.
+bcrypt==4.0.1
+python-multipart==0.0.9
+
+# ===== LLM / Orchestration =====
+groq==1.5.0
+langgraph==0.2.27
+langchain==0.2.16
+langchain-core==0.2.41
+
+# ===== Vector DB =====
+# Pure-Python/numpy implementation in vectorstore/chroma_client.py
+# Zero compiled dependencies -- installs instantly on any Python version.
+
+# ===== Document parsing =====
+pypdf==4.3.1
+python-docx==1.1.2
+
+# ===== Data / viz =====
+pandas==2.2.2
+numpy==1.26.4
+plotly==5.23.0
+
+# ===== Utilities =====
+sqlalchemy==2.0.32
+requests==2.32.3
+reportlab==4.2.2
