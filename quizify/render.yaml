@@ -5,6 +5,7 @@ services:
   - type: web
     name: quizify-api
     runtime: python
+    rootDir: quizify
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
@@ -26,9 +27,10 @@ services:
       - key: ENVIRONMENT
         value: production
     
-  - type: web
+   - type: web
     name: quizify-ui
     runtime: python
+    rootDir: quizify
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
