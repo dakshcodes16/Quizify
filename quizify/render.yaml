@@ -25,11 +25,7 @@ services:
         value: ./vectorstore/chroma_data
       - key: ENVIRONMENT
         value: production
-    disk:
-      name: quizify-data
-      mountPath: /opt/render/project/src/database
-      sizeGB: 1
-
+    
   - type: web
     name: quizify-ui
     runtime: python
