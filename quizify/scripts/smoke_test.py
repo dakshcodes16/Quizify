@@ -28,7 +28,7 @@ def main():
         if existing:
             db.delete(existing)
             db.flush()
-        user = User(name="Smoke Test", email="smoketest@gmail.com", password_hash="x", role="student")
+        user = User(name="Smoke Test", email="smoketest@gmail.com", password_hash="x", role="student", roll_no="SMOKE-1")
         db.add(user)
         db.flush()
         student_id = user.id

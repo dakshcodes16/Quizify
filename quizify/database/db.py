@@ -3,7 +3,7 @@ Database engine + session management.
 SQLite by default (DATABASE_URL in .env), swappable for Postgres
 by changing DATABASE_URL — SQLAlchemy handles the rest.
 """
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from contextlib import contextmanager
 import sys
@@ -46,6 +46,66 @@ def init_db():
         if db_file and db_file != ":memory:":
             Path(db_file).resolve().parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+
+    # Check and run database migrations
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    if "questions" in inspector.get_table_names():
+        columns = [c["name"] for c in inspector.get_columns("questions")]
+        if "time_limit" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE questions ADD COLUMN time_limit INTEGER DEFAULT 30"))
+
+    if "users" in inspector.get_table_names():
+        columns = inspector.get_columns("users")
+        col_names = [c["name"] for c in columns]
+        if "roll_no" not in col_names:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN roll_no VARCHAR(50)"))
+
+        # Drop NOT NULL constraints on email and password_hash for non-SQLite databases (like PostgreSQL)
+        if "sqlite" not in settings.database_url:
+            email_col = next((c for c in columns if c["name"] == "email"), None)
+            if email_col and not email_col.get("nullable", True):
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE users ALTER COLUMN email DROP NOT NULL"))
+            
+            pwd_col = next((c for c in columns if c["name"] == "password_hash"), None)
+            if pwd_col and not pwd_col.get("nullable", True):
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"))
+
+    if "quizzes" in inspector.get_table_names():
+        columns = [c["name"] for c in inspector.get_columns("quizzes")]
+        if "code" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE quizzes ADD COLUMN code VARCHAR(50)"))
+                try:
+                    conn.execute(text("CREATE UNIQUE INDEX ix_quizzes_code ON quizzes (code)"))
+                except Exception:
+                    pass
+            
+            # Backfill existing quizzes with random unique codes
+            import random
+            import string
+            from database.models import Quiz
+            from sqlalchemy.orm import sessionmaker
+            Session = sessionmaker(bind=engine)
+            session = Session()
+            try:
+                quizzes = session.query(Quiz).filter(Quiz.code == None).all()
+                for q in quizzes:
+                    while True:
+                        code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                        existing = session.query(Quiz).filter_by(code=code).first()
+                        if not existing:
+                            q.code = code
+                            break
+                session.commit()
+            except Exception:
+                session.rollback()
+            finally:
+                session.close()
 
 
 @contextmanager

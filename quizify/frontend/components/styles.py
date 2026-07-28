@@ -314,11 +314,14 @@ div[data-baseweb="radio"] label, div[data-baseweb="select"] { color: var(--text-
 
 /* ================= Question card ================= */
 .question-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 1.5rem 1.6rem;
-    margin-bottom: 1rem;
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 20px !important;
+    padding: 1.85rem 2rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 20px 40px -20px rgba(0,0,0,0.5) !important;
 }
 .question-number {
     display: inline-flex;
@@ -360,6 +363,94 @@ hr { border-color: var(--border); }
 a:focus-visible, button:focus-visible, input:focus-visible {
     outline: 2px solid var(--violet);
     outline-offset: 2px;
+}
+
+/* ================= Premium Radio Card & Visual Enhancements ================= */
+div[data-testid="stRadio"] label:not([data-testid="stWidgetLabel"]) {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 14px !important;
+    padding: 0.95rem 1.4rem !important;
+    margin-bottom: 0.7rem !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    cursor: pointer !important;
+}
+div[data-testid="stRadio"] label:not([data-testid="stWidgetLabel"]):hover {
+    background: rgba(124, 92, 255, 0.05) !important;
+    border-color: rgba(124, 92, 255, 0.3) !important;
+    transform: translateX(3px);
+}
+div[data-testid="stRadio"] label:not([data-testid="stWidgetLabel"])[data-checked="true"] {
+    background: rgba(124, 92, 255, 0.1) !important;
+    border-color: var(--violet) !important;
+    box-shadow: 0 0 14px rgba(124, 92, 255, 0.15) !important;
+}
+div[data-testid="stRadio"] label:not([data-testid="stWidgetLabel"]) p {
+    font-size: 0.98rem !important;
+    font-weight: 500 !important;
+    color: var(--text-primary) !important;
+}
+
+@keyframes timer-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 107, 129, 0); }
+    50% { transform: scale(1.05); box-shadow: 0 0 12px rgba(255, 107, 129, 0.3); }
+}
+.timer-pulse-critical {
+    animation: timer-pulse 1s infinite alternate ease-in-out !important;
+    border-color: var(--coral) !important;
+    color: var(--coral) !important;
+    background: rgba(255, 107, 129, 0.1) !important;
+}
+
+/* ================= Premium Sidebar Profile & Glowing Active Tabs ================= */
+.sidebar-profile {
+    background: linear-gradient(135deg, rgba(124,92,255,0.1) 0%, rgba(79,124,255,0.03) 100%) !important;
+    border: 1px solid rgba(124,92,255,0.2) !important;
+    border-radius: 16px !important;
+    padding: 1rem 1.1rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2) !important;
+}
+div[data-testid="stSidebar"] button[kind="primary"] {
+    background: linear-gradient(90deg, rgba(124,92,255,0.16) 0%, rgba(79,124,255,0.04) 100%) !important;
+    border-left: 4px solid var(--violet) !important;
+    border-radius: 0 12px 12px 0 !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    color: var(--text-primary) !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+div[data-testid="stSidebar"] button[kind="secondary"] {
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stSidebar"] button[kind="secondary"]:hover {
+    background: rgba(255,255,255,0.03) !important;
+    color: var(--text-primary) !important;
+}
+
+/* ================= Capsule tag style ================= */
+.concept-badge {
+    display: inline-block !important;
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 0.25rem 0.65rem !important;
+    font-size: 0.8rem !important;
+    margin: 0.2rem !important;
+    color: var(--text-secondary) !important;
+    transition: all 0.2s ease !important;
+}
+.concept-badge:hover {
+    border-color: rgba(124,92,255,0.25) !important;
+    color: var(--text-primary) !important;
 }
 </style>
 """

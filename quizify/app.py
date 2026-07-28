@@ -42,7 +42,7 @@ def render_sidebar():
             '<div style="display:flex; align-items:center; gap:0.6rem; padding: 0.5rem 0 1.4rem 0;">'
             '<div style="width:34px; height:34px; border-radius:9px; '
             'background:linear-gradient(135deg, var(--violet), var(--blue)); '
-            'display:flex; align-items:center; justify-content:center; font-size:1.05rem;">Q</div>'
+            'display:flex; align-items:center; justify-content:center; font-size:1.05rem; font-weight:700;">Q</div>'
             '<span class="gradient-text" style="font-size:1.25rem; font-weight:700; font-family:var(--font-display);">Quizify</span>'
             '</div>',
             unsafe_allow_html=True,
@@ -55,11 +55,10 @@ def render_sidebar():
             return
 
         st.markdown(
-            f'<div style="background:var(--surface); border:1px solid var(--border); '
-            f'border-radius:12px; padding:0.7rem 0.9rem; margin-bottom:1.2rem;">'
-            f'<div style="font-weight:600;">{st.session_state["user_name"]}</div>'
-            f'<div style="font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; '
-            f'letter-spacing:0.05em; font-family:var(--font-mono);">{st.session_state["user_role"]}</div>'
+            f'<div class="sidebar-profile">'
+            f'<div style="font-weight:600; color:var(--text-primary);">{st.session_state["user_name"]}</div>'
+            f'<div style="font-size:0.75rem; color:var(--violet); font-weight:700; text-transform:uppercase; '
+            f'letter-spacing:0.06em; font-family:var(--font-mono); margin-top:0.25rem;">{st.session_state["user_role"]}</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -69,14 +68,14 @@ def render_sidebar():
 
         if role == "teacher":
             nav_items = [
-                ("Upload material", "teacher_upload"),
-                ("Faculty dashboard", "faculty_dashboard"),
+                ("📤 Ingest Content", "teacher_upload"),
+                ("📊 Faculty Board", "faculty_dashboard"),
             ]
         else:
             nav_items = [
-                ("Take a quiz", "quiz_interface"),
-                ("Feedback", "feedback_dashboard"),
-                ("Learning gaps", "learning_gap_dashboard"),
+                ("📝 Take Quiz", "quiz_interface"),
+                ("💡 Evaluation", "feedback_dashboard"),
+                ("🎯 Learning Gaps", "learning_gap_dashboard"),
             ]
 
         for label, page_key in nav_items:
@@ -92,7 +91,7 @@ def render_sidebar():
         if not settings.groq_api_key:
             st.warning("GROQ_API_KEY not set — AI features will fail until configured in .env")
 
-        if st.button("Log out", use_container_width=True):
+        if st.button("🚪 Log out", use_container_width=True, key="nav_logout", type="secondary"):
             logout(st)
             st.rerun()
 

@@ -146,6 +146,8 @@ class AnalyticsAgent:
         """Aggregate insights across all students for the faculty dashboard."""
         with get_db_session() as db:
             students = db.query(User).filter_by(role="student").all()
+            # Sort by roll_no (handling None values by sorting them at the end/using empty string)
+            students = sorted(students, key=lambda s: s.roll_no if s.roll_no is not None else "")
             rows = []
             all_weak_topics: Dict[str, int] = {}
             mastery_values = []
@@ -166,6 +168,7 @@ class AnalyticsAgent:
                 rows.append({
                     "student_id": s.id,
                     "name": s.name,
+                    "roll_no": s.roll_no,
                     "email": s.email,
                     "mastery_score": mastery,
                     "quizzes_taken": quizzes_taken,
@@ -198,6 +201,7 @@ class AnalyticsAgent:
         with get_db_session() as db:
             student = db.query(User).filter_by(id=student_id).first()
             student_name = student.name if student else f"Student #{student_id}"
+            student_roll = student.roll_no if student else ""
 
         doc = SimpleDocTemplate(output_path, pagesize=letter)
         styles = getSampleStyleSheet()
@@ -207,13 +211,17 @@ class AnalyticsAgent:
             Paragraph("Quizify — Progress Report", title_style),
             Spacer(1, 12),
             Paragraph(f"Student: {student_name}", styles["Heading2"]),
+        ]
+        if student_roll:
+            elements.append(Paragraph(f"Roll Number: {student_roll}", styles["Heading3"]))
+        elements.extend([
             Paragraph(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}", styles["Normal"]),
             Spacer(1, 16),
             Paragraph(f"Overall Mastery Score: {dashboard['mastery_score']}%", styles["Heading3"]),
             Paragraph(f"Quizzes Taken: {dashboard['quizzes_taken']}", styles["Normal"]),
             Paragraph(f"Current Streak: {dashboard['current_streak']} days", styles["Normal"]),
             Spacer(1, 16),
-        ]
+        ])
 
         if dashboard["topic_mastery"]:
             elements.append(Paragraph("Topic Mastery", styles["Heading3"]))

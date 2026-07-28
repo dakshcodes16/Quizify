@@ -20,17 +20,18 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(120), nullable=False)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True, nullable=True, index=True)
+    password_hash = Column(String(255), nullable=True)
     role = Column(String(20), nullable=False, default="student")  # "student" | "teacher"
+    roll_no = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    courses = relationship("Course", back_populates="owner")
-    responses = relationship("Response", back_populates="student")
-    analytics = relationship("Analytics", back_populates="student", uselist=False)
-    badges = relationship("Badge", back_populates="student")
+    courses = relationship("Course", back_populates="owner", cascade="all, delete-orphan")
+    responses = relationship("Response", back_populates="student", cascade="all, delete-orphan")
+    analytics = relationship("Analytics", back_populates="student", uselist=False, cascade="all, delete-orphan")
+    badges = relationship("Badge", back_populates="student", cascade="all, delete-orphan")
     assignments_received = relationship(
-        "Assignment", back_populates="student", foreign_keys="Assignment.student_id"
+        "Assignment", back_populates="student", foreign_keys="Assignment.student_id", cascade="all, delete-orphan"
     )
 
 
@@ -58,6 +59,7 @@ class Quiz(Base):
     bloom_level = Column(String(30), default="understand")
     created_for_student_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    code = Column(String(50), unique=True, index=True, nullable=True)
 
     course = relationship("Course", back_populates="quizzes")
     questions = relationship("Question", back_populates="quiz")
@@ -100,6 +102,7 @@ class Question(Base):
     explanation = Column(Text)
     difficulty = Column(String(20), default="medium")
     concept_tag = Column(String(255))
+    time_limit = Column(Integer, default=30)
 
     quiz = relationship("Quiz", back_populates="questions")
     responses = relationship("Response", back_populates="question")

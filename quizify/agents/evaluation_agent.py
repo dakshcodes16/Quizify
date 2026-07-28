@@ -78,9 +78,31 @@ class EvaluationAgent:
     # ------------------------------------------------------------------
     def _grade_objective(self, question: Dict, student_answer: str) -> Dict:
         """Deterministic exact-match grading for MCQ / True-False, with a hint on failure."""
-        correct_answer = str(question.get("answer", "")).strip().lower()
+        raw_correct = str(question.get("answer", "")).strip()
+        
+        # Resolve A/B/C/D letters to full option texts if options are present
+        options = question.get("options", [])
+        if options and question.get("type") == "mcq":
+            if raw_correct in ("A", "B", "C", "D") and len(raw_correct) == 1:
+                idx = ord(raw_correct) - ord("A")
+                if 0 <= idx < len(options):
+                    resolved_correct = options[idx]
+                else:
+                    resolved_correct = raw_correct
+            elif raw_correct in ("a", "b", "c", "d") and len(raw_correct) == 1:
+                idx = ord(raw_correct) - ord("a")
+                if 0 <= idx < len(options):
+                    resolved_correct = options[idx]
+                else:
+                    resolved_correct = raw_correct
+            else:
+                resolved_correct = raw_correct
+        else:
+            resolved_correct = raw_correct
+
+        correct_answer_clean = resolved_correct.strip().lower()
         given = str(student_answer or "").strip().lower()
-        is_correct = given == correct_answer and given != ""
+        is_correct = given == correct_answer_clean and given != ""
 
         feedback = question.get("explanation", "")
         hint = None
@@ -91,7 +113,7 @@ class EvaluationAgent:
             "is_correct": is_correct,
             "score": 1.0 if is_correct else 0.0,
             "student_answer": student_answer,
-            "correct_answer": question.get("answer", ""),
+            "correct_answer": resolved_correct,
             "feedback": feedback,
             "hint": hint,
         }

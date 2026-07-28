@@ -15,13 +15,13 @@ def render(st):
             """
             <div style="text-align:center; margin-bottom: 1.75rem;">
                 <h2 class="gradient-text" style="margin-bottom:0.3rem;">Welcome to Quizify</h2>
-                <p style="color:var(--text-secondary);">Sign in or create an account to continue</p>
+                <p style="color:var(--text-secondary);">Faculty Portal — Sign in or create an account to manage courses.</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        tab_login, tab_register = st.tabs(["Sign in", "Create account"])
+        tab_login, tab_register, tab_join = st.tabs(["Sign in", "Create account", "Join Quiz (Students)"])
 
         with tab_login:
             with st.form("login_form"):
@@ -52,7 +52,6 @@ def render(st):
                     "Password", type="password", key="reg_password",
                     placeholder="At least 6 characters",
                 )
-                role = st.selectbox("I am a...", ["student", "teacher"], key="reg_role")
                 submitted = st.form_submit_button("Create account", use_container_width=True)
 
             if submitted:
@@ -61,7 +60,8 @@ def render(st):
                 elif len(reg_password) < 6:
                     st.error("Password needs at least 6 characters.")
                 else:
-                    data, err = auth_client.safe_call(auth_client.register, name, reg_email, reg_password, role)
+                    # Default role to teacher for registration
+                    data, err = auth_client.safe_call(auth_client.register, name, reg_email, reg_password, "teacher")
                     if err:
                         st.error(err)
                     else:
@@ -71,6 +71,44 @@ def render(st):
                         st.session_state["user_role"] = data["role"]
                         st.session_state["page"] = "teacher_upload" if data["role"] == "teacher" else "quiz_interface"
                         st.rerun()
+
+        with tab_join:
+            with st.form("login_join_quiz_form"):
+                code = st.text_input("Quiz Code", placeholder="e.g. K9B8JD", key="login_join_code")
+                name = st.text_input("Your Name", placeholder="e.g. Jane Doe", key="login_student_name")
+                roll_no = st.text_input("Roll Number", placeholder="e.g. 101 or CS-21", key="login_student_roll")
+                submit = st.form_submit_button("Start Quiz", use_container_width=True)
+
+                if submit:
+                    if not code or not name or not roll_no:
+                        st.error("Please enter Quiz Code, Name, and Roll Number.")
+                    else:
+                        from database.quiz_repo import access_quiz_by_code
+                        quiz, student, err = access_quiz_by_code(code, name, roll_no)
+                        if err:
+                            st.error(err)
+                        else:
+                            st.session_state["auth_token"] = "guest_token"
+                            st.session_state["user_id"] = student.id
+                            st.session_state["user_name"] = student.name
+                            st.session_state["user_role"] = "student"
+                            st.session_state["active_quiz"] = quiz
+                            st.session_state["active_course_id"] = quiz["course_id"]
+                            st.session_state["page"] = "quiz_interface"
+                            
+                            # Clean/reset quiz session state so it starts fresh!
+                            st.session_state["quiz_answers"] = {}
+                            st.session_state["quiz_start_time"] = None
+                            st.session_state["quiz_submitted"] = False
+                            st.session_state["pending_evaluation"] = False
+                            st.session_state["current_question_idx"] = 0
+                            st.session_state["question_start_time"] = None
+                            st.session_state["last_question_idx"] = 0
+                            st.session_state.pop("last_evaluation", None)
+                            st.session_state.pop("last_adaptive", None)
+                            st.session_state.pop("last_analytics", None)
+                            
+                            st.rerun()
 
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("\u2190 Back to home", use_container_width=True):

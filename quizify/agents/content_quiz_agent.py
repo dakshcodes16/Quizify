@@ -122,19 +122,35 @@ Identify 3-8 distinct topics. Be specific and grounded only in the material prov
                 f"Prioritize questions that directly test these concepts."
             )
 
-        prompt = f"""You are an expert quiz designer creating an adaptive assessment.
+        unique_questions = []
+        attempts = 0
+        max_attempts = 4
+
+        while len(unique_questions) < num_questions and attempts < max_attempts:
+            needed = num_questions - len(unique_questions)
+
+            avoid_instruction = ""
+            if unique_questions:
+                avoid_list = "\n".join([f"- {q.get('question', '')}" for q in unique_questions])
+                avoid_instruction = (
+                    f"\nIMPORTANT: Do NOT generate questions that are similar to or repeat "
+                    f"the following questions that have already been generated:\n{avoid_list}"
+                )
+
+            prompt = f"""You are an expert quiz designer creating an adaptive assessment.
 
 TOPIC: {topic}
 DIFFICULTY: {difficulty}
 BLOOM'S TAXONOMY LEVEL: {bloom_level}
 ALLOWED QUESTION TYPES: {', '.join(question_types)}
-NUMBER OF QUESTIONS: {num_questions}
+NUMBER OF QUESTIONS TO GENERATE: {needed}
 {focus_instruction}
+{avoid_instruction}
 
 GROUNDING CONTEXT FROM COURSE MATERIAL (use this to keep questions accurate and on-topic):
 \"\"\"{context}\"\"\"
 
-Generate {num_questions} questions. For MCQ, include exactly 4 options with 3 plausible,
+Generate EXACTLY {needed} new and unique questions. For MCQ, include exactly 4 options with 3 plausible,
 well-reasoned distractors (not obviously wrong). For true_false, the statement should
 not be trivially guessable. For short_answer, the answer should be a concise, gradable phrase or sentence.
 
@@ -148,27 +164,36 @@ Return JSON with this exact shape:
       "answer": "the correct option text (for mcq), 'True'/'False' (for true_false), or model answer (for short_answer)",
       "explanation": "why this is correct, 1-2 sentences",
       "difficulty": "easy" | "medium" | "hard",
-      "concept_tag": "the specific concept this tests"
+      "concept_tag": "the specific concept this tests",
+      "time_limit": 30
     }}
   ]
 }}
-For true_false questions, options should be ["True", "False"]. For short_answer, options should be []."""
+For true_false questions, options should be ["True", "False"]. For short_answer, options should be []. For each question, decide a suitable 'time_limit' in seconds based on the difficulty and question type (e.g. 30 seconds for MCQ/TF easy/medium questions, 45 seconds for MCQ/TF hard questions, and 60-90 seconds for short_answer questions). Keep it as an integer between 30 and 120."""
 
-        result = self.llm.generate_json(
-            prompt,
-            system_instruction="You are a rigorous assessment design engine. Always return valid, complete JSON.",
-            temperature=0.6,
-        )
+            result = self.llm.generate_json(
+                prompt,
+                system_instruction="You are a rigorous assessment design engine. Always return valid, complete JSON.",
+                temperature=0.6,
+            )
 
-        questions = result.get("questions", [])
-        questions = self._filter_duplicates(course_id, questions)
+            generated = result.get("questions", [])
+            if not isinstance(generated, list):
+                generated = []
+
+            filtered = self._filter_duplicates(course_id, generated)
+            unique_questions.extend(filtered)
+            attempts += 1
+
+        if len(unique_questions) > num_questions:
+            unique_questions = unique_questions[:num_questions]
 
         return {
             "course_id": course_id,
             "topic": topic,
             "difficulty": difficulty,
             "bloom_level": bloom_level,
-            "questions": questions,
+            "questions": unique_questions,
         }
 
     def _filter_duplicates(self, course_id: int, questions: List[Dict]) -> List[Dict]:

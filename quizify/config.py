@@ -2,6 +2,7 @@
 Centralized application configuration.
 Loads from environment variables / .env file using pydantic-settings.
 """
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 
@@ -38,5 +39,26 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="after")
+    def resolve_paths(self):
+        # Resolve database_url if it's relative SQLite path
+        if self.database_url.startswith("sqlite:///"):
+            db_path_str = self.database_url.replace("sqlite:///", "", 1)
+            db_path = Path(db_path_str)
+            if not db_path.is_absolute():
+                self.database_url = f"sqlite:///{ (BASE_DIR / db_path).resolve().as_posix() }"
+        
+        # Normalize postgres:// to postgresql:// for SQLAlchemy compatibility
+        if self.database_url.startswith("postgres://"):
+            self.database_url = self.database_url.replace("postgres://", "postgresql://", 1)
+        
+        # Resolve chroma_persist_dir
+        chroma_path = Path(self.chroma_persist_dir)
+        if not chroma_path.is_absolute():
+            self.chroma_persist_dir = str((BASE_DIR / chroma_path).resolve())
+            
+        return self
+
 
 settings = Settings()
+

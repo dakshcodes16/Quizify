@@ -32,10 +32,12 @@ def render(st):
 
     if not active_quiz:
         if st.session_state.get("quiz_submitted"):
-            # just finished one -- reset before showing the picker again
             st.session_state["quiz_submitted"] = False
             st.session_state["quiz_answers"] = {}
             st.session_state["quiz_start_time"] = None
+            st.session_state["current_question_idx"] = 0
+            st.session_state["question_start_time"] = None
+            st.session_state["last_question_idx"] = 0
         _render_quiz_picker(st)
         return
 
@@ -47,22 +49,70 @@ def render(st):
             st.session_state["active_quiz"] = None
             st.session_state["quiz_answers"] = {}
             st.session_state["quiz_submitted"] = False
+            st.session_state["current_question_idx"] = 0
+            st.session_state["question_start_time"] = None
+            st.session_state["last_question_idx"] = 0
             st.rerun()
         return
 
-    if st.session_state.get("quiz_start_time") is None:
-        st.session_state["quiz_start_time"] = time.time()
+    # Initialize session state variables if they are missing
+    if "current_question_idx" not in st.session_state:
+        st.session_state["current_question_idx"] = 0
+    
+    current_idx = st.session_state["current_question_idx"]
 
-    elapsed = int(time.time() - st.session_state["quiz_start_time"])
-    answered = len(st.session_state.get("quiz_answers", {}))
-    progress = answered / len(questions) if questions else 0
+    # If somehow index is out of bounds, submit the quiz
+    if current_idx >= len(questions):
+        st.session_state["quiz_submitted"] = True
+        st.session_state["pending_evaluation"] = True
+        st.session_state["page"] = "feedback_dashboard"
+        st.rerun()
+        return
 
-    col_a, col_b = st.columns([3, 1])
-    with col_a:
-        st.progress(progress, text=f"{answered} of {len(questions)} answered")
-    with col_b:
-        mins, secs = divmod(elapsed, 60)
-        st.markdown(f'<div class="pill">{mins:02d}:{secs:02d}</div>', unsafe_allow_html=True)
+    # Keep track of when we transition to a new question
+    if (
+        "question_start_time" not in st.session_state
+        or st.session_state.get("last_question_idx") != current_idx
+        or st.session_state.get("question_start_time") is None
+    ):
+        st.session_state["question_start_time"] = time.time()
+        st.session_state["last_question_idx"] = current_idx
+
+    q = questions[current_idx]
+    
+    # Calculate initial time left
+    time_limit = q.get("time_limit", 30) or 30
+    elapsed = time.time() - st.session_state["question_start_time"]
+    time_left = max(0, int(time_limit - elapsed))
+
+    # Progress bar and page headers
+    progress = current_idx / len(questions) if questions else 0
+
+    # Placeholder for the visual progress bar and timer
+    header_placeholder = st.empty()
+
+    def update_header(time_val):
+        is_critical = (time_val <= 10)
+        color = "var(--coral)" if is_critical else "var(--violet)"
+        extra_class = "timer-pulse-critical" if is_critical else ""
+        percentage = int(((current_idx + 1) / len(questions)) * 100) if len(questions) > 0 else 0
+        header_placeholder.markdown(
+            f"""
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; width: 100%;">
+                <span style="font-weight: 600; color: var(--text-primary);">Question {current_idx + 1} of {len(questions)}</span>
+                <div class="pill {extra_class}" style="font-weight: 700; color: {color}; border-color: {color}; margin-left: auto;">
+                    ⏳ {time_val}s left
+                </div>
+            </div>
+            <div style="width: 100%; height: 8px; background: rgba(255, 255, 255, 0.12); border-radius: 4px; overflow: hidden; margin-bottom: 1.5rem;">
+                <div style="width: {percentage}%; height: 100%; background: linear-gradient(90deg, var(--violet), var(--blue)); border-radius: 4px; transition: width 0.3s ease;"></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # Render initial header
+    update_header(time_left)
 
     st.markdown(
         f'<p style="color:var(--text-secondary);">Topic: <b style="color:var(--text-primary);">{active_quiz["topic"]}</b> &nbsp; '
@@ -70,46 +120,87 @@ def render(st):
         unsafe_allow_html=True,
     )
 
-    answers = st.session_state.get("quiz_answers", {})
+    # Render current question card
+    st.markdown(
+        f'<div class="question-card"><span class="question-number">{current_idx+1}</span><b>{q["question"]}</b></div>',
+        unsafe_allow_html=True,
+    )
 
-    for i, q in enumerate(questions):
-        st.markdown(
-            f'<div class="question-card"><span class="question-number">{i+1}</span><b>{q["question"]}</b></div>',
-            unsafe_allow_html=True,
+    answers = st.session_state.get("quiz_answers", {})
+    current_ans = answers.get(current_idx)
+
+    # Render inputs (labels are empty to avoid duplicate display in UI)
+    response = None
+    if q["type"] == "mcq":
+        options = q.get("options", [])
+        index = options.index(current_ans) if current_ans in options else None
+        response = st.radio(
+            " ", options, key=f"q_{active_quiz.get('quiz_id','x')}_{current_idx}",
+            index=index, label_visibility="collapsed",
+        )
+    elif q["type"] == "true_false":
+        options = ["True", "False"]
+        index = options.index(current_ans) if current_ans in options else None
+        response = st.radio(
+            " ", options, key=f"q_{active_quiz.get('quiz_id','x')}_{current_idx}",
+            index=index, label_visibility="collapsed",
+        )
+    else:
+        response = st.text_area(
+            " ", key=f"q_{active_quiz.get('quiz_id','x')}_{current_idx}",
+            value=current_ans or "", label_visibility="collapsed", height=80,
         )
 
-        if q["type"] == "mcq":
-            options = q.get("options", [])
-            response = st.radio(
-                "Select an answer", options, key=f"q_{active_quiz.get('quiz_id','x')}_{i}",
-                index=None, label_visibility="collapsed",
-            )
-        elif q["type"] == "true_false":
-            response = st.radio(
-                "True or False", ["True", "False"], key=f"q_{active_quiz.get('quiz_id','x')}_{i}",
-                index=None, label_visibility="collapsed",
-            )
-        else:
-            response = st.text_area(
-                "Your answer", key=f"q_{active_quiz.get('quiz_id','x')}_{i}",
-                label_visibility="collapsed", height=80,
-            )
-
-        if response:
-            answers[i] = response
+    # Save response to session state as soon as it is selected/entered
+    if response:
+        answers[current_idx] = response
         st.session_state["quiz_answers"] = answers
-        st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<hr>", unsafe_allow_html=True)
-    submit_disabled = len(answers) < len(questions)
-    if submit_disabled:
-        st.caption(f"Answer all {len(questions)} questions to submit ({len(answers)} done).")
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("Submit quiz", disabled=submit_disabled, use_container_width=True):
-        st.session_state["quiz_submitted"] = True
-        st.session_state["pending_evaluation"] = True
-        st.session_state["page"] = "feedback_dashboard"
-        st.rerun()
+    is_last = (current_idx == len(questions) - 1)
+    button_label = "Submit quiz" if is_last else "Next Question"
+
+    # Action layout
+    col_prev, col_next = st.columns([1, 1])
+    with col_next:
+        if st.button(button_label, use_container_width=True, type="primary"):
+            if is_last:
+                st.session_state["quiz_submitted"] = True
+                st.session_state["pending_evaluation"] = True
+                st.session_state["page"] = "feedback_dashboard"
+                st.rerun()
+            else:
+                st.session_state["current_question_idx"] += 1
+                st.session_state["question_start_time"] = None
+                st.rerun()
+
+    # Countdown loop in python
+    if time_left > 0:
+        last_displayed_time = -1
+        while time_left > 0:
+            if time_left != last_displayed_time:
+                update_header(time_left)
+                last_displayed_time = time_left
+            time.sleep(0.1)
+            elapsed = time.time() - st.session_state["question_start_time"]
+            time_left = max(0, int(time_limit - elapsed))
+
+    # Time has run out
+    if time_left <= 0:
+        if current_idx not in st.session_state["quiz_answers"]:
+            st.session_state["quiz_answers"][current_idx] = ""
+        st.toast("⏰ Time's up for this question!")
+        time.sleep(1.0)
+        if is_last:
+            st.session_state["quiz_submitted"] = True
+            st.session_state["pending_evaluation"] = True
+            st.session_state["page"] = "feedback_dashboard"
+            st.rerun()
+        else:
+            st.session_state["current_question_idx"] += 1
+            st.session_state["question_start_time"] = None
+            st.rerun()
 
 
 def _render_quiz_picker(st):
@@ -141,6 +232,9 @@ def _render_quiz_picker(st):
                         st.session_state["quiz_answers"] = {}
                         st.session_state["quiz_start_time"] = None
                         st.session_state["quiz_submitted"] = False
+                        st.session_state["current_question_idx"] = 0
+                        st.session_state["question_start_time"] = None
+                        st.session_state["last_question_idx"] = 0
                         st.rerun()
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<h3 class="gradient-text">Or practice on your own</h3>', unsafe_allow_html=True)
@@ -207,6 +301,9 @@ def _render_quiz_generator(st):
                 st.session_state["quiz_answers"] = {}
                 st.session_state["quiz_start_time"] = None
                 st.session_state["quiz_submitted"] = False
+                st.session_state["current_question_idx"] = 0
+                st.session_state["question_start_time"] = None
+                st.session_state["last_question_idx"] = 0
                 st.rerun()
             except Exception as e:
                 st.error(f"Quiz generation failed: {e}")

@@ -47,9 +47,11 @@ def render(st):
         st.markdown('<h3 class="gradient-text">Student performance</h3>', unsafe_allow_html=True)
         df = pd.DataFrame(dashboard["students"])
         if not df.empty:
-            df_sorted = df.sort_values("mastery_score", ascending=True)
+            # Sort by roll_no descending so Plotly renders bottom-to-top with lower roll numbers at the top
+            df_sorted = df.sort_values("roll_no", ascending=False, na_position="first")
+            y_labels = [f"{r['roll_no']} - {r['name']}" if r['roll_no'] else r['name'] for _, r in df_sorted.iterrows()]
             fig = go.Figure(go.Bar(
-                x=df_sorted["mastery_score"], y=df_sorted["name"], orientation="h",
+                x=df_sorted["mastery_score"], y=y_labels, orientation="h",
                 marker=dict(
                     color=df_sorted["mastery_score"],
                     colorscale=[[0, "#FF6B81"], [0.5, "#FFB454"], [1, "#26EBC4"]],
@@ -90,16 +92,17 @@ def render(st):
     all_topics = sorted({t for s in dashboard["students"] for t in s["weak_topics"]})
     if all_topics:
         heat_data = []
-        student_names = [s["name"] for s in dashboard["students"] if s["quizzes_taken"] > 0]
-        for s in dashboard["students"]:
-            if s["quizzes_taken"] == 0:
-                continue
+        active_students = [s for s in dashboard["students"] if s["quizzes_taken"] > 0]
+        # Sort active_students by roll_no
+        active_students = sorted(active_students, key=lambda s: s.get("roll_no") or "")
+        student_labels = [f"{s['roll_no']} - {s['name']}" if s.get('roll_no') else s['name'] for s in active_students]
+        for s in active_students:
             row = [1 if t in s["weak_topics"] else 0 for t in all_topics]
             heat_data.append(row)
 
         if heat_data:
             fig_heat = px.imshow(
-                heat_data, x=all_topics, y=student_names,
+                heat_data, x=all_topics, y=student_labels,
                 color_continuous_scale=[[0, "#1A1830"], [1, "#FF6B81"]],
                 aspect="auto", labels=dict(color="Weak"),
             )
@@ -107,7 +110,7 @@ def render(st):
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                 font=CHART_FONT,
                 margin=dict(l=10, r=10, t=10, b=10),
-                height=max(300, len(student_names) * 35),
+                height=max(300, len(student_labels) * 35),
             )
             st.plotly_chart(fig_heat, use_container_width=True)
     else:
@@ -120,11 +123,12 @@ def render(st):
     st.markdown('<h3 class="gradient-text">Leaderboard</h3>', unsafe_allow_html=True)
     for i, s in enumerate(dashboard["leaderboard"][:10]):
         rank = ["1", "2", "3"][i] if i < 3 else f"#{i+1}"
+        student_label = f"{s['roll_no']} - {s['name']}" if s.get('roll_no') else s['name']
         st.markdown(
             f"""
             <div class="glass-card-flat" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
                 <span><b style="font-family:var(--font-mono); color:var(--violet);">{rank}</b>
-                &nbsp;&nbsp;<b>{s['name']}</b> &nbsp;
+                &nbsp;&nbsp;<b>{student_label}</b> &nbsp;
                 <span style="color:var(--text-muted); font-size:0.85rem;">{s['quizzes_taken']} quizzes &middot; {s['streak']} day streak</span></span>
                 <span class="gradient-text" style="font-family:var(--font-mono); font-weight:700; font-size:1.15rem;">{s['mastery_score']}%</span>
             </div>
@@ -134,21 +138,23 @@ def render(st):
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<h3 class="gradient-text">All students</h3>', unsafe_allow_html=True)
-    df_display = pd.DataFrame(dashboard["students"])[["name", "email", "mastery_score", "quizzes_taken", "streak"]]
-    df_display.columns = ["Name", "Email", "Mastery %", "Quizzes taken", "Streak"]
+    df_display = pd.DataFrame(dashboard["students"])[["roll_no", "name", "email", "mastery_score", "quizzes_taken", "streak"]]
+    df_display.columns = ["Roll No", "Name", "Email", "Mastery %", "Quizzes taken", "Streak"]
     st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    eligible_students = [s["name"] for s in dashboard["students"] if s["quizzes_taken"] > 0]
-    if eligible_students:
-        selected_student = st.selectbox("Export PDF report for student", eligible_students)
-        if selected_student and st.button("Generate PDF report"):
-            student_row = next(s for s in dashboard["students"] if s["name"] == selected_student)
+    active_eligible = [s for s in dashboard["students"] if s["quizzes_taken"] > 0]
+    if active_eligible:
+        student_options = {f"{s['roll_no']} - {s['name']}" if s['roll_no'] else s['name']: s['student_id'] for s in active_eligible}
+        selected_option = st.selectbox("Export PDF report for student", list(student_options.keys()))
+        if selected_option and st.button("Generate PDF report"):
+            selected_student_id = student_options[selected_option]
+            selected_student_name = selected_option.split(" - ", 1)[-1]
             with st.spinner("Generating report..."):
-                output_path = str(Path(tempfile.gettempdir()) / f"report_{student_row['student_id']}.pdf")
-                agent.export_pdf_report(student_row["student_id"], output_path)
+                output_path = str(Path(tempfile.gettempdir()) / f"report_{selected_student_id}.pdf")
+                agent.export_pdf_report(selected_student_id, output_path)
                 with open(output_path, "rb") as f:
                     st.download_button(
-                        "Download report", f, file_name=f"{selected_student}_progress_report.pdf",
+                        "Download report", f, file_name=f"{selected_student_name}_progress_report.pdf",
                         mime="application/pdf",
                     )

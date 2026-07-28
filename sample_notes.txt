@@ -1,0 +1,7 @@
+Cell biology (also cellular biology or cytology) is a branch of biology that studies the structure, function, and behavior of cells.
+All living organisms are made of cells. A cell is the basic unit of life that is responsible for the living and functioning of organisms.
+Eukaryotic cells have a nucleus and membrane-bound organelles, whereas prokaryotic cells do not have a nucleus.
+Eukaryotic organisms can be unicellular or multicellular.
+Mitochondria are known as the powerhouses of the cell. They generate ATP through cellular respiration.
+Ribosomes are responsible for protein synthesis.
+The cell membrane protects the cell and controls the movement of substances in and out of cells.

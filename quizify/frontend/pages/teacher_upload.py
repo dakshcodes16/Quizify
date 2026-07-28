@@ -75,12 +75,33 @@ def render(st):
     st.markdown('<h3 class="gradient-text">Extracted topics</h3>', unsafe_allow_html=True)
 
     for topic in extraction["concepts"]:
+        concepts_html = "".join(
+            f'<span class="concept-badge">{c}</span>'
+            for c in topic.get('key_concepts', [])
+        )
+        objectives_html = "".join(
+            f'<li style="color:var(--text-secondary); margin-bottom:0.35rem; font-size:0.9rem;">{o}</li>'
+            for o in topic.get('learning_objectives', [])
+        )
         st.markdown(
             f"""
             <div class="glass-card">
-                <h4 style="margin-top:0;">{topic.get('topic', 'Untitled topic')} &nbsp; {difficulty_pill(topic.get('suggested_difficulty','medium'))}</h4>
-                <p style="color:var(--text-secondary); margin-bottom:0.5rem;"><b style="color:var(--text-primary);">Key concepts</b><br>{', '.join(topic.get('key_concepts', []))}</p>
-                <p style="color:var(--text-secondary);"><b style="color:var(--text-primary);">Learning objectives</b><br>{'; '.join(topic.get('learning_objectives', []))}</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                    <h4 style="margin:0; font-size:1.15rem; font-family:var(--font-display);">{topic.get('topic', 'Untitled topic')}</h4>
+                    <div>{difficulty_pill(topic.get('suggested_difficulty','medium'))}</div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-weight:600; font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.4rem;">Key Concepts</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:0.2rem;">
+                        {concepts_html}
+                    </div>
+                </div>
+                <div>
+                    <div style="font-weight:600; font-size:0.78rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.4rem;">Learning Objectives</div>
+                    <ul style="padding-left:1.2rem; margin:0;">
+                        {objectives_html}
+                    </ul>
+                </div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -132,7 +153,7 @@ def render(st):
                 st.session_state["active_quiz"] = quiz
                 st.session_state["quiz_answers"] = {}
                 num_questions_generated = len(quiz["questions"])
-                st.success(f"Generated {num_questions_generated} questions on {quiz_topic} and saved it.")
+                st.success(f"Generated {num_questions_generated} questions on {quiz_topic} and saved it. Access code: {quiz['code']}")
             except Exception as e:
                 st.error(f"Quiz generation failed: {e}")
 
@@ -153,41 +174,18 @@ def render(st):
             )
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown('<h3 class="gradient-text">Assign this quiz</h3>', unsafe_allow_html=True)
+        st.markdown('<h3 class="gradient-text">Share Quiz Code</h3>', unsafe_allow_html=True)
 
-        if not active_quiz.get("quiz_id"):
-            st.warning("This quiz was generated before assignment support was added -- generate a new one to assign it.")
+        if not active_quiz.get("code"):
+            st.warning("No access code found for this quiz.")
         else:
-            students = get_students_for_teacher(st.session_state["user_id"])
-            if not students:
-                st.info("No student accounts exist yet. Students need to sign up before you can assign quizzes to them.")
-            else:
-                with card_container(st):
-                    student_map = {f"{s['name']} ({s['email']})": s["id"] for s in students}
-                    assign_to_all = st.checkbox("Assign to entire class", value=True)
-                    selected_labels = []
-                    if not assign_to_all:
-                        selected_labels = st.multiselect(
-                            "Choose students", list(student_map.keys()),
-                        )
-                    due = st.date_input("Due date (optional)", value=None)
-                    assign_clicked = st.button("Assign quiz", type="primary")
-
-                if assign_clicked:
-                    target_ids = (
-                        [s["id"] for s in students]
-                        if assign_to_all
-                        else [student_map[label] for label in selected_labels]
-                    )
-                    if not target_ids:
-                        st.warning("Select at least one student, or check \"Assign to entire class.\"")
-                    else:
-                        due_dt = datetime.combine(due, datetime.min.time()) if due else None
-                        created = assign_quiz(
-                            active_quiz["quiz_id"], target_ids,
-                            assigned_by_id=st.session_state["user_id"], due_date=due_dt,
-                        )
-                        if created:
-                            st.success(f"Assigned to {created} student{'s' if created != 1 else ''}.")
-                        else:
-                            st.info("Already assigned to all selected students -- nothing new to do.")
+            with card_container(st):
+                st.markdown(
+                    "<p style='color:var(--text-secondary); margin-bottom: 1rem;'>"
+                    "Students do not need an account to take this quiz. "
+                    "Share the code below with your students. They can access the quiz by "
+                    "entering it and their name on the home page."
+                    "</p>",
+                    unsafe_allow_html=True
+                )
+                st.code(active_quiz["code"], language="text")

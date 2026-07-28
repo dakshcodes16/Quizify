@@ -41,5 +41,6 @@ plotly==5.23.0
 
 # ===== Utilities =====
 sqlalchemy==2.0.32
+psycopg2-binary==2.9.9
 requests==2.32.3
 reportlab==4.2.2
