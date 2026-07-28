@@ -1,14 +1,12 @@
 # Render deployment blueprint — defines two web services (API + UI)
 # that share environment variables. Deploy via "New > Blueprint" in
 # the Render dashboard, pointing at this repo.
-services:
-  - type: web
-    name: quizify-api
-    runtime: python
-    rootDir: quizify
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+- type: web
+  name: quizify-api
+  runtime: python
+  plan: free
+  buildCommand: cd quizify && pip install -r requirements.txt
+  startCommand: cd quizify && uvicorn api.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: GROQ_API_KEY
         sync: false
@@ -28,12 +26,11 @@ services:
         value: production
     
    - type: web
-    name: quizify-ui
-    runtime: python
-    rootDir: quizify
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
+  name: quizify-ui
+  runtime: python
+  plan: free
+  buildCommand: cd quizify && pip install -r requirements.txt
+  startCommand: cd quizify && streamlit run app.py --server.address 0.0.0.0 --server.port $PORT --server.headless true
     envVars:
       - key: GROQ_API_KEY
         sync: false
